@@ -1,21 +1,12 @@
+import os
 import numpy as np
 import tensorflow as tf
 from matplotlib import pyplot as plt
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dense, Flatten, Reshape
-
+from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dense, Flatten, Reshape, Conv2DTranspose
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from AI.Github.Persona import Persona
-
-# import openpyxl
-from openpyxl import Workbook
-from openpyxl import load_workbook
-from openpyxl import Workbook
-from openpyxl import load_workbook
-
-
-# Ensure that the Persona class is available in the current file or import it correctly.
 
 class CNN:
     def __init__(self):
@@ -23,22 +14,85 @@ class CNN:
 
     def _build_model(self):
         model = Sequential()
+
         model.add(Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(16, 5, 3)))
-        model.add(MaxPooling2D((2, 2), padding='same'))
-        model.add(Conv2D(64, (3, 3), activation='relu', padding='same'))
-        model.add(MaxPooling2D((2, 2), padding='same'))
-        model.add(Flatten())
-        model.add(Dense(64, activation='relu'))
-        model.add(Dense(240, activation='sigmoid'))  # Adjust the output shape based on your requirements
-        model.add(Reshape((16, 5, 3)))
+        print(f"Shape after Conv2D: {model.output_shape}")
+
+        # Add MaxPooling2D layer
+        model.add(MaxPooling2D((2, 1), strides=(2, 1), padding='same'))
+        print(f"Shape after MaxPooling2D: {model.output_shape}")
+
+        # Add another Conv2D layer
+        model.add(Conv2D(64, (3, 3), activation='sigmoid', padding='same'))
+        print(f"Shape after Conv2D: {model.output_shape}")
+
+        # Add another MaxPooling2D layer
+        model.add(MaxPooling2D((2, 1), strides=(2, 1), padding='same'))
+        print(f"Shape after MaxPooling2D: {model.output_shape}")
+
+        # Add another Conv2D layer
+        model.add(Conv2D(128, (3, 3), activation='sigmoid', padding='same'))
+        print(f"Shape after Conv2D: {model.output_shape}")
+
+        # Add another MaxPooling2D layer
+        model.add(MaxPooling2D((2, 1), strides=(2, 1), padding='same'))
+        print(f"Shape after MaxPooling2D: {model.output_shape}")
+
+        # Add Conv2DTranspose layer
+        model.add(Conv2DTranspose(64, (3, 3), strides=(2, 1), padding='same'))
+        print(f"Shape after Conv2DTranspose: {model.output_shape}")
+
+        # Add another Conv2DTranspose layer
+        model.add(Conv2DTranspose(32, (3, 3), strides=(2, 1), padding='same'))
+        print(f"Shape after Conv2DTranspose: {model.output_shape}")
+
+        # Add the final Conv2DTranspose layer
+        model.add(Conv2DTranspose(3, (3, 3), strides=(2, 1), activation='sigmoid', padding='same'))
+        print(f"Final output shape: {model.output_shape}") # Final output layer
+
         model.summary()
         return model
 
-    def train(self, input_data, output_data, batch_size, epochs):
+    def train(self, input_data, output_data, batch_size, epochs, learning_rate):
         print(input_data.shape)
         print(output_data.shape)
-        self.model.compile(optimizer='adam', loss='mse')  # You can change the loss function based on your specific task
-        self.model.fit(input_data, output_data, batch_size=batch_size, epochs=epochs)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+        self.model.compile(optimizer=optimizer, loss='logcosh',
+                           metrics=['accuracy', tf.keras.metrics.Precision(), tf.keras.metrics.Recall(),
+                                    tf.keras.metrics.AUC()])
+
+        # Check if the trained model file exists
+        model_filename = "trained_model.h5"
+        if os.path.exists(model_filename):
+            # Load the trained model
+            self.model = load_model(model_filename)
+        else:
+            # Train the model
+            history = self.model.fit(input_data, output_data, batch_size=batch_size, epochs=epochs)
+
+            print("Accuracy:", history.history['accuracy'])
+            print("Precision:", history.history['precision'])
+            print("Recall:", history.history['recall'])
+            print("AUC:", history.history['auc'])
+
+            # Save the trained model
+            self.model.save(model_filename)
+
+            # Plot the loss curve
+            self.plot_loss_curve(history)
+
+    def plot_loss_curve(self, history):
+        # Retrieve the loss values from the history object
+        loss = history.history['loss']
+        epochs = range(1, len(loss) + 1)
+
+        # Plot the loss curve
+        plt.plot(epochs, loss, 'g', label='Training loss')
+        plt.title('Training Loss')
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.show()
 
     @staticmethod
     def load_schedules(file_path):
@@ -60,15 +114,13 @@ class CNN:
         reshaped_predictions = predicted_overlaps.reshape((predicted_overlaps.shape[0], 16, 5, 3))
 
         fig, axs = plt.subplots(1, 2, figsize=(12, 6))
-
         # Plot the predicted overlaps
         axs[0].imshow(reshaped_predictions[0, :, :, 0], cmap='coolwarm', interpolation='nearest')
         axs[0].set_title('Predicted Overlaps')
         axs[0].set_xlabel('Days')
         axs[0].set_ylabel('Time Slots')
-
         # Annotate the overlapping times for the predicted overlaps
-        for i in range(16):
+        for i in range(10):
             for j in range(5):
                 text = axs[0].text(j, i, reshaped_predictions[0, i, j, 0],
                                    ha="center", va="center", color="w")
@@ -83,7 +135,7 @@ class CNN:
         axs[1].set_ylabel('Time Slots')
 
         # Annotate the overlapping times for the actual overlaps
-        for i in range(16):
+        for i in range(10):
             for j in range(5):
                 text = axs[1].text(j, i, reshaped_actual_overlaps[i, j, 0],
                                    ha="center", va="center", color="w")
@@ -129,16 +181,13 @@ class CNN:
                     print(
                         f"Overlap at Week {week_to_predict}, Day {persona1.days[j]}, Time {persona1.start_hour + i * persona1.interval_minutes / 60:.2f}")
 
-    # Example usage:
-    # Assuming you have the necessary variables defined, you can call the function like this:
-    # display_overlaps_info(week_to_predict, persona1, predicted_overlaps_classes, actual_overlapsValidation)
-
 
 cnn_model = CNN()
 
 # Load the schedules
 persona1, persona2 = cnn_model.load_schedules("output.xlsx")
 print(persona1.num_weeks, "num_weeks")
+print(persona1.display_schedule(1, 52))
 
 stacked_schedules = Persona.stack_schedules(persona1, persona2, persona1.num_weeks)
 
@@ -151,17 +200,13 @@ overlap_matrix_transform = Persona.transform_matrix(overlap_matrix)
 # Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(stacked_schedules_transform, overlap_matrix_transform,
                                                     test_size=0.2, random_state=42)
-
-# Train the model on the training data
-
-cnn_model.train(X_train, y_train, batch_size=32, epochs=350)
+learning_rate = 0.001
+cnn_model.train(X_train, y_train, batch_size=32, epochs=450, learning_rate=learning_rate)
 
 # Make predictions using the trained model
 predictions = cnn_model.model.predict(X_test)
 
-# Print the predictions
-
-week_to_predict = 42
+week_to_predict = 11
 
 # Reshape the data for prediction
 X_to_predict = stacked_schedules_transform[week_to_predict].reshape(1, 16, 5, 3)
@@ -193,7 +238,7 @@ stacked_schedulesValidation = np.array(stacked_schedulesValidation)
 print(stacked_schedulesValidation.shape, "stacked_schedules.shape")
 new_stacked_schedules_transform = Persona.transform_matrix(stacked_schedulesValidation)
 
-week_to_predictValidation = 53  # Week three is at index 2
+week_to_predictValidation = 99  # Week three is at index 2
 X_to_predictValidation = new_stacked_schedules_transform[week_to_predictValidation].reshape(1, 16, 5, 3)
 predictions_new = cnn_model.model.predict(X_to_predictValidation)
 
@@ -211,7 +256,6 @@ predicted_overlaps_classesValidation, accuracyValidation = cnn_model.convert_and
 print(f"Accuracy: {accuracyValidation * 100:.2f}%")
 
 cnn_model.plot_overlaps(predicted_overlaps_classesValidation, actual_overlapsValidation, week_to_predictValidation)
-print(predicted_overlaps_classes, "predicted_overlaps_classesValidation")
 
 cnn_model.display_overlaps_info(week_to_predictValidation, persona1,
                                 predicted_overlaps_classesValidation,actual_overlapsValidation)
