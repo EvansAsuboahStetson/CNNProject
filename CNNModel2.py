@@ -330,7 +330,7 @@ precision = precision_score(filtered_flat_actual, filtered_flat_predictions, ave
 recall = recall_score(filtered_flat_actual, filtered_flat_predictions, average='weighted', zero_division=1)
 f1 = f1_score(filtered_flat_actual, filtered_flat_predictions, average='weighted', zero_division=1)
 
-# Print metrics
+
 print(f"Accuracy: {accuracy}")
 print(f"Precision: {precision}")
 print(f"Recall: {recall}")
