@@ -25,7 +25,7 @@ class CNN2:
         model.add(MaxPooling2D((2, 1), strides=(2, 1), padding='same'))
         print(f"Shape after MaxPooling2D: {model.output_shape}")
 
-        model.add(Conv2D(64, (3, 3), activation='sigmoid', padding='same'))
+        model.add(Conv2D(64, (3, 3), activation='relu', padding='same'))
         print(f"Shape after Conv2D: {model.output_shape}")
 
         model.add(MaxPooling2D((2, 1), strides=(2, 1), padding='same'))
@@ -229,10 +229,17 @@ np.set_printoptions(threshold=np.inf)
 personas = cnn_model.load_schedules("output2.xlsx", num_personas=4)
 
 stacked_schedules = Persona.stack_schedules(personas[0].num_weeks, *personas)
-print(stacked_schedules)
+print(stacked_schedules, "\n", "Stacked Schedules")
 stacked_schedules = np.array(stacked_schedules)
-print(stacked_schedules.shape, stacked_schedules.dtype, stacked_schedules.ndim, "\n", "Stacked Schedules.shape, Stacked Schedules.dtype, Stacked Schedules.ndim")
+print(stacked_schedules.shape, stacked_schedules.dtype, stacked_schedules.ndim, "\n", "Stacked Schedules.shape, "
+                                                                                      "Stacked Schedules.dtype, "
+                                                                                      "Stacked Schedules.ndim")
+print(stacked_schedules.shape, stacked_schedules.dtype, stacked_schedules.ndim, "\n", "Stacked Schedules.shape, "
+                                                                                      "Stacked Schedules.dtype, "
+                                                                                      "Stacked Schedules.ndim")
 overlap_matrix = Persona.check_overlap(stacked_schedules)
+
+print(overlap_matrix, "\n", "Overlap Matrix")
 stacked_schedules_transform = Persona.transform_matrix(stacked_schedules)
 overlap_matrix_transform = Persona.transform_matrix(overlap_matrix)
 
@@ -241,11 +248,11 @@ overlap_matrix_transform = Persona.transform_matrix(overlap_matrix)
 X_train, X_test, y_train, y_test = train_test_split(stacked_schedules_transform, overlap_matrix_transform,
                                                     test_size=0.2, random_state=42)
 learning_rate = 0.001
-cnn_model.train(X_train, y_train, batch_size=32, epochs=2250, learning_rate=learning_rate, validation_data=(X_test, y_test))
+cnn_model.train(X_train, y_train, batch_size=32, epochs=500, learning_rate=learning_rate, validation_data=(X_test, y_test))
 
 
 persona1 = Persona("Persona1", 8, 18, 30, 52)
-week_to_predict = 23
+week_to_predict = 20
 X_to_predict = stacked_schedules_transform[week_to_predict].reshape(1, 80, 5, 3)
 predictions = cnn_model.model.predict(X_to_predict)
 overlap_matrix_transform = overlap_matrix_transform[week_to_predict]
@@ -294,7 +301,7 @@ overlap_matrix_transformValidation = Persona.transform_matrix(overlap_matrixVali
 
 
 persona1 = Persona("Persona1", 8, 18, 30, 52)
-week_to_predict = 67
+week_to_predict = 52
 X_to_predictValidation = stacked_schedules_transformValidation[week_to_predict].reshape(1, 80, 5, 3)
 predictionsValidation = cnn_model.model.predict(X_to_predictValidation)
 overlap_matrix_transformValidation = overlap_matrix_transformValidation[week_to_predict]
